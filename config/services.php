@@ -42,5 +42,9 @@ return [
         'key' => env('FMP_API_KEY'),
         'base_url' => 'https://financialmodelingprep.com/api/v3/',
     ],
+    'marketaux' => [
+        'key' => env('MARKETAUX_KEY'),
+        'base_url' => 'https://api.marketaux.com/v1/',
+    ],
 
 ];

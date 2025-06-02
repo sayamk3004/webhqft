@@ -11,75 +11,144 @@ class StockController extends Controller
 {
     protected $baseUrl;
     protected $fmpbaseUrl;
+    protected $auxbaseUrl;
     protected $apiKey;
+    protected $fmpApiKey;
+    protected $auxApiKey;
     protected $cacheDuration;
     protected $defaultSymbols;
-    protected $fmpApiKey;
+
 
     public function __construct()
     {
         $this->baseUrl = config('services.finnhub.base_url');
         $this->fmpbaseUrl = config('services.fmpApi.base_url');
+        $this->auxbaseUrl = config('services.marketaux.base_url');
         $this->apiKey = config('services.finnhub.key');
-         $this->fmpApiKey = config('services.fmpApi.key');
-        $this->cacheDuration = now()->addMinutes(30); // Cache for 30 minutes
+        $this->fmpApiKey = config('services.fmpApi.key');
+        $this->auxApiKey = config('services.marketaux.key');
+        $this->cacheDuration = now()->addMinutes(1500); // Cache for 30 minutes
         $this->defaultSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'BRK.B', 'JNJ', 'V', 'WMT', 'PG', 'MA', 'DIS', 'BAC'];
     }
 
     /**
      * Dashboard with cached data
      */
-public function dashboard()
-{
-    $marketnews = $this->getMarketNews();
+    public function dashboard()
+    {
+        $marketnews = $this->getMarketNews();
 
-    $symbols = [
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'FB', 'TSLA', 'NVDA', 'JPM', 'V', 'DIS',
-        'NFLX', 'PYPL', 'ADBE', 'CSCO', 'INTC', 'CMCSA', 'PEP', 'KO', 'XOM', 'WMT'
-    ];
+        $symbols = [
+            'AAPL',
+            'MSFT',
+            'GOOGL',
+            'AMZN',
+            'FB',
+            'TSLA',
+            'NVDA',
+            'JPM',
+            'V',
+            'DIS',
+            'NFLX',
+            'PYPL',
+            'ADBE',
+            'CSCO',
+            'INTC',
+            'CMCSA',
+            'PEP',
+            'KO',
+            'XOM',
+            'WMT'
+        ];
 
-    $stocks = $this->getPopularStocks();
+        $stocks = $this->getPopularStocks();
 
-    $indices = Cache::remember('market_indices', $this->cacheDuration, function () {
-        $response = Http::get("{$this->fmpbaseUrl}quotes/index?apikey={$this->fmpApiKey}");
-        return $response->json() ?: [];
-    });
-
-
-
-    $gainers = Cache::remember('top_gainers', $this->cacheDuration, function () {
-        $response = Http::get("{$this->fmpbaseUrl}gainers?apikey={$this->fmpApiKey}");
-        return $response->json() ?: [];
-    });
-
-    $losers = Cache::remember('top_losers', $this->cacheDuration, function () {
-        $response = Http::get("{$this->fmpbaseUrl}losers?apikey={$this->fmpApiKey}");
-        return $response->json() ?: [];
-    });
-
-    $sectors = Cache::remember('sector_performance', $this->cacheDuration, function () {
-        $response = Http::get("{$this->fmpbaseUrl}stock/sectors-performance?apikey={$this->fmpApiKey}");
-        $data = $response->json();
-        return $data['sectorPerformance'] ?? [];
-    });
-    $calendar = Cache::remember('economic_calendar', 300, function () {
-        $from = now()->format('Y-m-d');
-        $to = now()->addDays(7)->format('Y-m-d');
-        $response = Http::get("{$this->fmpbaseUrl}economic_calendar?from={$from}&to={$to}&apikey={$this->fmpApiKey}");
-        return $response->json() ?: [];
-    });
+        $indices = Cache::remember('market_indices', $this->cacheDuration, function () {
+            $response = Http::get("{$this->fmpbaseUrl}quotes/index?apikey={$this->fmpApiKey}");
+            return $response->json() ?: [];
+        });
 
 
-    return inertia('Dashboard', [
-        'marketNews' => $marketnews,
-        'popularStocks' => $stocks,
-        'indices' => $indices,
-        'gainers' => $gainers,
-        'losers' => $losers,
-        'sectors' => $sectors,
-        'calendar' => $calendar,
-    ]);
-}
+
+        $gainers = Cache::remember('top_gainers', $this->cacheDuration, function () {
+            $response = Http::get("{$this->fmpbaseUrl}gainers?apikey={$this->fmpApiKey}");
+            return $response->json() ?: [];
+        });
+
+        $losers = Cache::remember('top_losers', $this->cacheDuration, function () {
+            $response = Http::get("{$this->fmpbaseUrl}losers?apikey={$this->fmpApiKey}");
+            return $response->json() ?: [];
+        });
+
+        $sectors = Cache::remember('sector_performance', $this->cacheDuration, function () {
+            $response = Http::get("{$this->fmpbaseUrl}stock/sectors-performance?apikey={$this->fmpApiKey}");
+            $data = $response->json();
+            return $data['sectorPerformance'] ?? [];
+        });
+        $calendar = Cache::remember('economic_calendar', $this->cacheDuration, function () {
+            $from = now()->format('Y-m-d');
+            $to = now()->addDays(7)->format('Y-m-d');
+            $response = Http::get("{$this->fmpbaseUrl}economic_calendar?from={$from}&to={$to}&apikey={$this->fmpApiKey}");
+            return $response->json() ?: [];
+        });
+
+        $aiSummary = Cache::remember('ai_summary', $this->cacheDuration, function () {
+            $response = Http::get("{$this->auxbaseUrl}news/all", [
+                'limit' => 1,
+                'language' => 'en',
+                'filter_entities' => 'true',
+                'api_token' => $this->auxApiKey
+            ]);
+
+            return $response->json()['data'][0] ?? null;
+        });
+
+        $marketGraph = (function () {
+            $popularStocks = Cache::get('popular_stocks', []);
+            $symbols = array_column($popularStocks, 'ticker');
+
+            $graphData = [];
+
+            foreach ($symbols as $symbol) {
+                $cacheKey = "graph_data_{$symbol}";
+                $graphData[$symbol] = Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
+                    $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1mo";
+                    $response = Http::get($url)->json();
+
+                    if (!isset($response['chart']['result'][0])) return null;
+
+                    $result = $response['chart']['result'][0];
+                    $timestamps = $result['timestamp'] ?? [];
+                    $closes = $result['indicators']['quote'][0]['close'] ?? [];
+
+                    return [
+                        'symbol' => $symbol,
+                        'timestamps' => $timestamps,
+                        'closes' => $closes,
+                    ];
+                });
+            }
+
+            return $graphData;
+        });
+
+
+
+
+
+
+        return inertia('Dashboard', [
+            'marketNews' => $marketnews,
+            'popularStocks' => $stocks,
+            'indices' => $indices,
+            'gainers' => $gainers,
+            'losers' => $losers,
+            'sectors' => $sectors,
+            'calendar' => $calendar,
+            'aiSummary' => $aiSummary,
+             'marketGraph' => $marketGraph, 
+        ]);
+    }
 
 
     public function index(Request $request)
@@ -91,13 +160,13 @@ public function dashboard()
         $allStocks = $this->getAllStocksData();
 
         if ($search) {
-            $allStocks = array_filter($allStocks, function($item) use ($search) {
-                return stripos($item['symbol'], $search) !== false || 
-                       stripos($item['description'], $search) !== false;
+            $allStocks = array_filter($allStocks, function ($item) use ($search) {
+                return stripos($item['symbol'], $search) !== false ||
+                    stripos($item['description'], $search) !== false;
             });
         }
 
-        $filteredStocks = array_values(array_filter($allStocks, function($item) {
+        $filteredStocks = array_values(array_filter($allStocks, function ($item) {
             return $item['type'] === 'Common Stock';
         }));
 
@@ -122,7 +191,7 @@ public function dashboard()
     public function show($symbol)
     {
         $cacheKey = "stock_{$symbol}_data";
-        
+
         $data = Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
             return  [
                 'profile' => $this->getStockProfile($symbol),
@@ -142,7 +211,7 @@ public function dashboard()
 
         return inertia('Stocks/Show', array_merge(['symbol' => $symbol], $data));
     }
-    
+
     protected function getNews($symbol)
     {
         return Cache::remember("stock_news_{$symbol}", $this->cacheDuration, function () use ($symbol) {
@@ -164,9 +233,9 @@ public function dashboard()
     protected function getRecommendations($symbol)
     {
         return Cache::remember("stock_recommendations_{$symbol}", $this->cacheDuration, function () use ($symbol) {
-           $url = "{$this->baseUrl}stock/recommendation?symbol={$symbol}&token={$this->apiKey}";
-        $response = Http::get($url);
-        return $response->json() ?? [];
+            $url = "{$this->baseUrl}stock/recommendation?symbol={$symbol}&token={$this->apiKey}";
+            $response = Http::get($url);
+            return $response->json() ?? [];
         });
     }
     /**
@@ -204,11 +273,9 @@ public function dashboard()
      */
     public function refreshCache()
     {
-        // Refresh all stocks data
         $allStocks = $this->getAllStocksData();
         Cache::put('all_stocks_data', $allStocks, $this->cacheDuration);
-        
-        // Refresh dashboard data
+
         Cache::put('dashboard_data', [
             'popularStocks' => $this->getPopularStocks(),
             'marketNews' => $this->getMarketNews(),
@@ -216,27 +283,22 @@ public function dashboard()
             'lastUpdated' => now()->toDateTimeString()
         ], $this->cacheDuration);
 
-        // Update last updated timestamp
         Cache::put('stocks_last_updated', now()->toDateTimeString(), $this->cacheDuration);
 
         return response()->json(['success' => true, 'message' => 'Cache refreshed']);
     }
-
-    /**
-     * Get complete data for all stocks
-     */
     protected function getAllStocksData()
     {
         return Cache::remember('all_stocks_data', $this->cacheDuration, function () {
             $stocks = [];
-            
+
             foreach ($this->defaultSymbols as $symbol) {
                 $stockData = $this->getBasicStockData($symbol);
                 if ($stockData) {
                     $stocks[] = $stockData;
                 }
             }
-            
+
             return $stocks;
         });
     }
@@ -248,7 +310,7 @@ public function dashboard()
     {
         $profile = $this->getStockProfile($symbol);
         $quote = $this->getStockQuote($symbol);
-        
+
         if ($profile && $quote) {
             return [
                 'symbol' => $symbol,
@@ -262,7 +324,7 @@ public function dashboard()
                 'sector' => $profile['finnhubIndustry'] ?? null,
             ];
         }
-        
+
         return null;
     }
 
@@ -272,11 +334,11 @@ public function dashboard()
     protected function getCompleteStockData($symbol)
     {
         $basicData = $this->getBasicStockData($symbol);
-        
+
         if (!$basicData) {
             return null;
         }
-        
+
         return array_merge($basicData, [
             'financials' => $this->getFinancials($symbol),
             'earnings' => $this->getEarnings($symbol),
@@ -290,9 +352,9 @@ public function dashboard()
     protected function getPopularStocks()
     {
         $popularStocks = Cache::remember('popular_stocks', $this->cacheDuration, function () {
-    $response = Http::get("{$this->fmpbaseUrl}stock/actives?apikey={$this->fmpApiKey}");
-    return $response->json()['mostActiveStock'] ?? [];
-});
+            $response = Http::get("{$this->fmpbaseUrl}stock/actives?apikey={$this->fmpApiKey}");
+            return $response->json()['mostActiveStock'] ?? [];
+        });
         $stocks = [];
 
         foreach ($popularStocks as $symbol) {
@@ -311,11 +373,11 @@ public function dashboard()
     protected function getMarketNews()
     {
         return Cache::remember('market_news', $this->cacheDuration, function () {
-           $url = "{$this->fmpbaseUrl}stock_news?limit=20&apikey={$this->fmpApiKey}";
-        $response = Http::get($url);
-        $json = $response->json();
+            $url = "{$this->fmpbaseUrl}stock_news?limit=20&apikey={$this->fmpApiKey}";
+            $response = Http::get($url);
+            $json = $response->json();
 
-        return is_array($json) ? $json : [];
+            return is_array($json) ? $json : [];
         });
     }
 
@@ -369,30 +431,30 @@ public function dashboard()
         //     $response = Http::get("{$this->baseUrl}stock/candle?symbol={$symbol}&resolution={$resolution}&from={$from}&to={$to}&token={$this->apiKey}");
         //     return $response->successful() ? $response->json() : [];
         // });
-            $cacheKey = "yahoo_chart_{$symbol}_1y";
+        $cacheKey = "yahoo_chart_{$symbol}_1y";
 
-    return Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
-        $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1y";
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
+            $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1y";
 
-        $response = Http::get($url);
-        if (!$response->successful()) return [];
+            $response = Http::get($url);
+            if (!$response->successful()) return [];
 
-        $data = $response->json()['chart']['result'][0] ?? null;
-        if (!$data) return [];
+            $data = $response->json()['chart']['result'][0] ?? null;
+            if (!$data) return [];
 
-        $timestamps = $data['timestamp'];
-        $prices = $data['indicators']['quote'][0];
+            $timestamps = $data['timestamp'];
+            $prices = $data['indicators']['quote'][0];
 
-        return collect($timestamps)->map(function ($time, $i) use ($prices) {
-            return [
-                'timestamp' => Carbon::createFromTimestamp($time)->toDateString(),
-                'open' => $prices['open'][$i] ?? null,
-                'high' => $prices['high'][$i] ?? null,
-                'low' => $prices['low'][$i] ?? null,
-                'close' => $prices['close'][$i] ?? null,
-                'volume' => $prices['volume'][$i] ?? null,
-            ];
-        })->filter(fn ($item) => $item['close'] !== null)->values();
-    });
+            return collect($timestamps)->map(function ($time, $i) use ($prices) {
+                return [
+                    'timestamp' => Carbon::createFromTimestamp($time)->toDateString(),
+                    'open' => $prices['open'][$i] ?? null,
+                    'high' => $prices['high'][$i] ?? null,
+                    'low' => $prices['low'][$i] ?? null,
+                    'close' => $prices['close'][$i] ?? null,
+                    'volume' => $prices['volume'][$i] ?? null,
+                ];
+            })->filter(fn($item) => $item['close'] !== null)->values();
+        });
     }
 }

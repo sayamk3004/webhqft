@@ -15,11 +15,11 @@ const props = defineProps({
         <a :href="item.link" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-semibold">
           {{ item.title }}
         </a>
-        <p class="text-gray-600 mt-1 text-sm">{{ item.publisher }}</p>
-        <p class="text-gray-500 mt-1 text-xs">{{ new Date(item.date * 1000).toLocaleString() }}</p>
-        <p class="mt-2 text-gray-700" v-if="item.summary">{{ item.summary }}</p>
+        <p class="text-white-600 mt-1 text-sm">{{ item.publisher }}</p>
+        <p class="text-white-500 mt-1 text-xs">{{ new Date(item.date * 1000).toLocaleString() }}</p>
+        <p class="mt-2 text-white-700" v-if="item.summary">{{ item.summary }}</p>
       </li>
-      <li v-if="news.length === 0" class="text-gray-500 italic">No news available.</li>
+      <li v-if="news.length === 0" class="text-white-500 italic">No news available.</li>
     </ul>
   </div>
 </template>

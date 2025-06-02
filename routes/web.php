@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\ETFController;
+use App\Http\Controllers\LibraryController;
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -20,11 +22,17 @@ Route::get('/dashboard', [StockController::class, 'dashboard'])->name('dashboard
 Route::prefix('stocks')->group(function () {
     Route::get('/', [StockController::class, 'index'])->name('stocks.index');
     Route::get('/{symbol}', [StockController::class, 'show'])->name('stocks.show');
-    Route::get('/{symbol}/news', [DetailsController::class, 'news'])->name('stocks.news');
-Route::get('/{symbol}/peers', [DetailsController::class, 'peers'])->name('stocks.peers');
-Route::get('/{symbol}/analyst-recommendation', [DetailsController::class, 'analystRecommendation'])->name('stocks.analyst');
+//     Route::get('/{symbol}/news', [DetailsController::class, 'news'])->name('stocks.news');
+// Route::get('/{symbol}/peers', [DetailsController::class, 'peers'])->name('stocks.peers');
+// Route::get('/{symbol}/analyst-recommendation', [DetailsController::class, 'analystRecommendation'])->name('stocks.analyst');
 
     
+});
+Route::prefix('library')->group(function () {
+    Route::get('/', [LibraryController::class, 'index'])->name('library.index');
+//     Route::get('/{symbol}/news', [DetailsController::class, 'news'])->name('stocks.news');
+// Route::get('/{symbol}/peers', [DetailsController::class, 'peers'])->name('stocks.peers');
+// Route::get('/{symbol}/analyst-recommendation', [DetailsController::class, 'analystRecommendation'])->name('stocks.analyst');    
 });
 Route::get('/popular-stocks', function () {
     return response()->json(app(\App\Http\Controllers\StockController::class)->getPopularStocks());

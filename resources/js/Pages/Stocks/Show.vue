@@ -25,6 +25,7 @@ const props = defineProps({
 </script>
 
 <template>
+
     <Head :title="`${symbol} Stock`" />
 
     <AppLayout>
@@ -35,18 +36,16 @@ const props = defineProps({
                     <div class="flex items-center justify-between">
                         <div>
                             <h1 class="text-3xl font-bold">{{ profile.name }} ({{ symbol }})</h1>
-                            <p class="text-gray-600">{{ profile.exchange }}</p>
+                            <p class="text-white-600">{{ profile.exchange }}</p>
                         </div>
                         <div class="text-right">
                             <div class="text-3xl font-bold">
                                 ${{ quote.c?.toFixed(2) || 'N/A' }}
                             </div>
-                            <div
-                                :class="{
-                                    'text-green-500': quote.d && quote.d >= 0,
-                                    'text-red-500': quote.d && quote.d < 0,
-                                }"
-                            >
+                            <div :class="{
+                                'text-green-500': quote.d && quote.d >= 0,
+                                'text-red-500': quote.d && quote.d < 0,
+                            }">
                                 {{ quote.d?.toFixed(2) || 'N/A' }} ({{ quote.dp?.toFixed(2) || 'N/A' }}%)
                             </div>
                         </div>
@@ -57,7 +56,7 @@ const props = defineProps({
                 <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
                     <StockChart :symbol="symbol" :chartData="chartData" />
                 </div>
-                
+
 
                 <!-- Stock Overview -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -73,15 +72,15 @@ const props = defineProps({
                 <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
                     <StockEarnings :earnings="earnings" />
                 </div>
-                         <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
-<StockPeers :peers="peers" />
-    </div>
-         <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
-<StockAnalystRecommendations :recommendations="recommendations" />
-    </div>
-                             <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
-                <StockNews :news="news" />
-                    </div>
+                <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
+                    <StockPeers :peers="peers" />
+                </div>
+                <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
+                    <StockAnalystRecommendations :recommendations="recommendations" />
+                </div>
+                <div class="border border-gray-800 bg-default text-white shadow-sm rounded-lg shadow p-6 mb-8">
+                    <StockNews :news="news" />
+                </div>
             </div>
         </div>
     </AppLayout>
