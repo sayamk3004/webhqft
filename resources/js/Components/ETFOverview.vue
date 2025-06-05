@@ -34,24 +34,27 @@ const props = defineProps({
         <dt class="font-medium text-gray-400">Industry</dt>
         <dd class="mt-1 text-lg">{{ profile.industry || 'N/A' }}</dd>
       </div>
-
       <div>
         <dt class="font-medium text-gray-400">Market Cap</dt>
         <dd class="mt-1 text-lg">
-          {{ quote.mktCap ? new Intl.NumberFormat().format(quote.mktCap) : 'N/A' }}
+          {{ quote.marketCap ? new Intl.NumberFormat().format(quote.marketCap) : 'N/A' }}
         </dd>
       </div>
 
       <div>
         <dt class="font-medium text-gray-400">Average Volume</dt>
         <dd class="mt-1 text-lg">
-          {{ quote.volAvg ? new Intl.NumberFormat().format(quote.volAvg) : 'N/A' }}
+          {{ quote.avgVolume ? new Intl.NumberFormat().format(quote.avgVolume) : 'N/A' }}
         </dd>
       </div>
 
       <div>
-        <dt class="font-medium text-gray-400">Beta</dt>
-        <dd class="mt-1 text-lg">{{ quote.beta ?? 'N/A' }}</dd>
+        <dt class="font-medium text-gray-400">EPS</dt>
+        <dd class="mt-1 text-lg">{{ quote.eps ?? 'N/A' }}</dd>
+      </div>
+            <div>
+        <dt class="font-medium text-gray-400">PE</dt>
+        <dd class="mt-1 text-lg">{{ quote.pe ?? 'N/A' }}</dd>
       </div>
 
       <div class="md:col-span-2">

@@ -1,105 +1,100 @@
-<template>
-  <section class="bg-white dark:bg-zinc-900 text-black dark:text-white p-6 rounded-xl shadow-md mb-10">
-    <h2 class="text-2xl font-bold mb-6">📈 Market Graph – 1 Month Trend</h2>
-    <canvas ref="chartRef" class="w-full h-96"></canvas>
-  </section>
-</template>
-
 <script setup>
-import { onMounted, ref, watch } from 'vue';
-import Chart from 'chart.js/auto';
+import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale } from 'chart.js';
+import { Line } from 'vue-chartjs';
+
+ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale);
 
 const props = defineProps({
-  marketGraph: Object
+  marketGraph: Object, // { AAPL: { symbol, data: [...] }, MSFT: {...}, ... }
 });
 
-const chartRef = ref(null);
+const colors = [
+  '#6366f1', '#10b981', '#ef4444', '#3b82f6', '#f59e0b',
+  '#a855f7', '#06b6d4', '#e11d48', '#14b8a6', '#f97316'
+];
 
-function formatLabel(dateTs) {
-  return new Date(dateTs * 1000).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric'
-  });
-}
-
-onMounted(() => {
-  if (!props.marketGraph || Object.keys(props.marketGraph).length === 0) return;
-
-  const datasets = [];
-  let labels = [];
-
-  for (const symbol in props.marketGraph) {
-    const stock = props.marketGraph[symbol];
-    if (!stock || !stock.timestamps || !stock.closes) continue;
-
-    const dates = stock.timestamps.map(ts => formatLabel(ts));
-    if (labels.length === 0) labels = dates;
-
-    datasets.push({
-      label: symbol,
-      data: stock.closes,
-      borderWidth: 2,
-      pointRadius: 0,
-      tension: 0.3,
-    });
-  }
-
-  new Chart(chartRef.value, {
-    type: 'line',
-    data: {
-      labels,
-      datasets,
-    },
-    options: {
-      responsive: true,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            color: '#d1d5db',
-            boxWidth: 12,
-            padding: 15,
-          },
-        },
-        tooltip: {
-          mode: 'index',
-          intersect: false,
-          backgroundColor: '#1f2937',
-          titleColor: '#ffffff',
-          bodyColor: '#f9fafb',
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            color: '#9ca3af',
-            autoSkip: true,
-            maxTicksLimit: 10
-          },
-          grid: {
-            color: '#374151'
-          }
-        },
-        y: {
-          ticks: {
-            color: '#9ca3af'
-          },
-          grid: {
-            color: '#374151'
-          }
-        }
-      }
+const getLastValidClose = (data = []) => {
+  for (let i = data.length - 1; i >= 0; i--) {
+    const close = data[i]?.close;
+    if (typeof close === 'number' && !isNaN(close)) {
+      return close;
     }
+  }
+  return null;
+};
+
+const formatChartData = () => {
+  const entries = Object.entries(props.marketGraph ?? {});
+
+  const filtered = entries.filter(([_, stock]) => {
+    const lastClose = getLastValidClose(stock.data);
+    return lastClose !== null && lastClose > 30;
   });
-});
+
+  if (filtered.length === 0) return { labels: [], datasets: [] };
+
+  // Use first stock for timestamps
+  const labels = filtered[0][1].data.map(item => item.timestamp);
+
+  const datasets = filtered.map(([symbol, stock], index) => {
+    const closes = stock.data.map(item => item.close ?? null);
+    return {
+      label: symbol,
+      data: closes,
+      borderColor: colors[index % colors.length],
+      backgroundColor: colors[index % colors.length] + '20',
+      tension: 0.2,
+      fill: false,
+      pointRadius: 0,
+    };
+  });
+
+  return {
+    labels,
+    datasets,
+  };
+};
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'top',
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+    },
+  },
+  scales: {
+    x: {
+      title: {
+        display: true,
+        text: 'Date',
+      },
+      ticks: {
+        maxTicksLimit: 10,
+      },
+    },
+    y: {
+      title: {
+        display: true,
+        text: 'Closing Price (USD)',
+      },
+      beginAtZero: false,
+    },
+  },
+};
 </script>
 
-<style scoped>
-canvas {
-  max-width: 100%;
-}
-</style>
+<template>
+  <div>
+    <h2 class="text-2xl font-bold mb-6">Market Trend – Stocks Closing Above $30</h2>
+    <div v-if="Object.keys(marketGraph).length === 0" class="text-gray-500 text-center">No chart data available.</div>
+
+    <div v-else class="h-[500px] border p-4 rounded shadow">
+      <Line :data="formatChartData()" :options="chartOptions" />
+    </div>
+  </div>
+</template>

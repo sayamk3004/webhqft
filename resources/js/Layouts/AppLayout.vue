@@ -2,6 +2,7 @@
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import Sidebar from '@/Components/Sidebar.vue';
+import CompareBar from '@/Components/CompareBar.vue';
 
 const drawerOpen = ref(false);
 const searchQuery = ref('');
@@ -46,8 +47,9 @@ const search = () => {
         </nav>
 
         <!-- Page Content -->
-        <main class="pt-4 pl-0 sm:pl-64 transition-all duration-300">
+        <main class="pt-4 pl-0 mx-auto transition-all duration-300">
             <slot />
+             <CompareBar />
         </main>
     </div>
 </template>

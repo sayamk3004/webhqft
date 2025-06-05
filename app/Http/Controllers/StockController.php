@@ -27,58 +27,72 @@ class StockController extends Controller
         $this->apiKey = config('services.finnhub.key');
         $this->fmpApiKey = config('services.fmpApi.key');
         $this->auxApiKey = config('services.marketaux.key');
-        $this->cacheDuration = now()->addMinutes(1500); // Cache for 30 minutes
+        $this->cacheDuration = now()->addMinutes(1500);
         $this->defaultSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'BRK.B', 'JNJ', 'V', 'WMT', 'PG', 'MA', 'DIS', 'BAC'];
     }
 
-    /**
-     * Dashboard with cached data
-     */
+    public function compareData(Request $request)
+    {
+        $symbols = $request->input('symbols', []);
+
+        $results = [];
+
+        foreach ($symbols as $symbol) {
+            $quote = Cache::get("stock_quote_{$symbol}");
+            $profile = Cache::get("stock_profile_{$symbol}");
+
+            if ($quote && $profile) {
+                $results[] = [
+                    'symbol' => $symbol,
+                    'price' => $quote['c'] ?? null,
+                    'change' => $quote['d'] ?? null,
+                    'percentChange' => $quote['dp'] ?? null,
+                    'marketCap' => $profile['marketCapitalization'] ?? null,
+                    'peRatio' => $profile['pe'] ?? null,
+                    'industry' => $profile['finnhubIndustry'] ?? null,
+                    'name' => $profile['name'] ?? $symbol,
+                ];
+            }
+        }
+
+        return response()->json($results);
+    }
+    public function showCompare($symbols)
+    {
+        $symbolList = explode(',', $symbols);
+
+        $data = collect($symbolList)->mapWithKeys(function ($symbol) {
+            return [$symbol => $this->getCompleteStockData($symbol)];
+        });
+
+        return inertia('Stocks/Compare', [
+            'symbols' => $symbolList,
+            'data' => $data,
+        ]);
+    }
+
     public function dashboard()
     {
         $marketnews = $this->getMarketNews();
 
-        $symbols = [
-            'AAPL',
-            'MSFT',
-            'GOOGL',
-            'AMZN',
-            'FB',
-            'TSLA',
-            'NVDA',
-            'JPM',
-            'V',
-            'DIS',
-            'NFLX',
-            'PYPL',
-            'ADBE',
-            'CSCO',
-            'INTC',
-            'CMCSA',
-            'PEP',
-            'KO',
-            'XOM',
-            'WMT'
-        ];
-
         $stocks = $this->getPopularStocks();
 
-        $indices = Cache::remember('market_indices', $this->cacheDuration, function () {
+        $indices = collect(Cache::remember('market_indices', $this->cacheDuration, function () {
             $response = Http::get("{$this->fmpbaseUrl}quotes/index?apikey={$this->fmpApiKey}");
             return $response->json() ?: [];
-        });
+        }))->take(8);
 
 
 
-        $gainers = Cache::remember('top_gainers', $this->cacheDuration, function () {
+        $gainers = collect(Cache::remember('top_gainers', $this->cacheDuration, function () {
             $response = Http::get("{$this->fmpbaseUrl}gainers?apikey={$this->fmpApiKey}");
             return $response->json() ?: [];
-        });
+        }))->take(16);
 
-        $losers = Cache::remember('top_losers', $this->cacheDuration, function () {
+        $losers = collect(Cache::remember('top_losers', $this->cacheDuration, function () {
             $response = Http::get("{$this->fmpbaseUrl}losers?apikey={$this->fmpApiKey}");
             return $response->json() ?: [];
-        });
+        }))->take(16);
 
         $sectors = Cache::remember('sector_performance', $this->cacheDuration, function () {
             $response = Http::get("{$this->fmpbaseUrl}stock/sectors-performance?apikey={$this->fmpApiKey}");
@@ -110,7 +124,7 @@ class StockController extends Controller
             $graphData = [];
 
             foreach ($symbols as $symbol) {
-                $cacheKey = "graph_data_{$symbol}";
+                $cacheKey = "graph_datsa_{$symbol}";
                 $graphData[$symbol] = Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
                     $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1mo";
                     $response = Http::get($url)->json();
@@ -118,13 +132,26 @@ class StockController extends Controller
                     if (!isset($response['chart']['result'][0])) return null;
 
                     $result = $response['chart']['result'][0];
+
                     $timestamps = $result['timestamp'] ?? [];
-                    $closes = $result['indicators']['quote'][0]['close'] ?? [];
+                    $quote = $result['indicators']['quote'][0];
+
+                    $dataPoints = [];
+
+                    foreach ($timestamps as $i => $timestamp) {
+                        $dataPoints[] = [
+                            'timestamp' => date('Y-m-d', $timestamp),
+                            'open' => $quote['open'][$i] ?? null,
+                            'high' => $quote['high'][$i] ?? null,
+                            'low' => $quote['low'][$i] ?? null,
+                            'close' => $quote['close'][$i] ?? null,
+                            'volume' => $quote['volume'][$i] ?? null,
+                        ];
+                    }
 
                     return [
                         'symbol' => $symbol,
-                        'timestamps' => $timestamps,
-                        'closes' => $closes,
+                        'data' => $dataPoints,
                     ];
                 });
             }
@@ -146,7 +173,23 @@ class StockController extends Controller
             'sectors' => $sectors,
             'calendar' => $calendar,
             'aiSummary' => $aiSummary,
-             'marketGraph' => $marketGraph, 
+            'marketGraph' => $marketGraph,
+        ]);
+    }
+    public function movers()
+    {
+        $gainers = Cache::get('top_gainers');
+        $losers = Cache::get('top_losers');
+        return inertia('Stocks/Movers', [
+            'gainers' => $gainers,
+            'losers' => $losers,
+        ]);
+    }
+    public function news()
+    {
+        $marketnews = $this->getAllMarketNews();
+        return inertia('Stocks/News', [
+            'marketNews' => $marketnews,
         ]);
     }
 
@@ -380,6 +423,16 @@ class StockController extends Controller
             return is_array($json) ? $json : [];
         });
     }
+    protected function getAllMarketNews()
+    {
+        return Cache::remember('market_news_a;;', $this->cacheDuration, function () {
+            $url = "{$this->fmpbaseUrl}stock_news?apikey={$this->fmpApiKey}";
+            $response = Http::get($url);
+            $json = $response->json();
+
+            return is_array($json) ? $json : [];
+        });
+    }
 
     protected function getMarketStatus()
     {
@@ -423,14 +476,6 @@ class StockController extends Controller
 
     protected function getChartData($symbol, $resolution = 'D', $from = null, $to = null)
     {
-        // $from = $from ?: now()->subYear()->timestamp;
-        // $to = $to ?: now()->timestamp;
-        // $cacheKey = "stock_chart_{$symbol}_{$resolution}_{$from}_{$to}";
-
-        // return Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol, $resolution, $from, $to) {
-        //     $response = Http::get("{$this->baseUrl}stock/candle?symbol={$symbol}&resolution={$resolution}&from={$from}&to={$to}&token={$this->apiKey}");
-        //     return $response->successful() ? $response->json() : [];
-        // });
         $cacheKey = "yahoo_chart_{$symbol}_1y";
 
         return Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
@@ -456,5 +501,16 @@ class StockController extends Controller
                 ];
             })->filter(fn($item) => $item['close'] !== null)->values();
         });
+    }
+    public function showIndex($symbol)
+    {
+        $indices = Cache::get('market_indices', []);
+        $index = collect($indices)->firstWhere('symbol', $symbol);
+
+        if (!$index) {
+            abort(404, 'Index not found.');
+        }
+
+        return inertia('Indices/Show', ['index' => $index]);
     }
 }
