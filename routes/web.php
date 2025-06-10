@@ -33,11 +33,28 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/popular-stocks', function () {
         return response()->json(app(\App\Http\Controllers\StockController::class)->getPopularStocks());
-    });
-
+    })->name('popular_stocks');
+    Route::get('/market-graph', function () {
+        return response()->json(app(\App\Http\Controllers\StockController::class)->getMarketGraph());
+    })->name('market_graph');
     Route::get('/market-news', function () {
         return response()->json(app(\App\Http\Controllers\StockController::class)->getMarketNews());
-    });
+    })->name('market_news');
+    Route::get('/top-movers', function () {
+        return response()->json(app(\App\Http\Controllers\StockController::class)->getTopMovers());
+    })->name('top_movers');
+    Route::get('/sector-performance', function () {
+        return response()->json(app(\App\Http\Controllers\StockController::class)->getSectorPerformance());
+    })->name('sectors');
+    Route::get('/indices', function () {
+        return response()->json(app(\App\Http\Controllers\StockController::class)->getIndices());
+    })->name('indices');
+    Route::get('/economic-calendar', function () {
+        return response()->json(app(\App\Http\Controllers\StockController::class)->getEconomicCalendar());
+    })->name('economic_calendar');
+    Route::get('/aianalyst-summary', function () {
+        return response()->json(app(\App\Http\Controllers\StockController::class)->getAIAnalystSummary());
+    })->name('aianalyst-summary');
 
     Route::get('/market-status', function () {
         return response()->json(app(\App\Http\Controllers\StockController::class)->getMarketStatus());
@@ -47,7 +64,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ETFController::class, 'index'])->name('etfs.index');
         Route::get('/{symbol}', [ETFController::class, 'show'])->name('etfs.show');
         Route::get('/{symbol}/tab-data/{tab}', [ETFController::class, 'loadTabData'])->name('etfs.loadTabData');
-
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

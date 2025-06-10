@@ -6,6 +6,7 @@ import CompareBar from '@/Components/CompareBar.vue';
 
 const drawerOpen = ref(false);
 const searchQuery = ref('');
+const appName = ref('WebHQ FT');
 
 const search = () => {
     if (searchQuery.value.trim()) {
@@ -29,8 +30,6 @@ const search = () => {
                     WebHQ FT
                 </Link>
             </div>
-
-            <!-- Right side: Search -->
             <div class="relative w-full max-w-md">
                 <input type="text" v-model="searchQuery" @keyup.enter="search"
                     class="w-full rounded border border-gray-600 bg-gray-800 py-2 pl-9 pr-3 placeholder-gray-400 focus:outline-none"
@@ -45,8 +44,6 @@ const search = () => {
                 </button>
             </div>
         </nav>
-
-        <!-- Page Content -->
         <main class="pt-4 pl-0 mx-auto transition-all duration-300">
             <slot />
              <CompareBar />

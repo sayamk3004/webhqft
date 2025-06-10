@@ -120,8 +120,8 @@ class ETFController extends Controller
                 return response()->json(['distributions' => $this->getDistributions($symbol)]);
             case 'peers':
                 return response()->json(['peers' => $this->getPeers($symbol)]);
-            case 'holdings':
-                return response()->json(['holdings' => $this->getETFHoldings($symbol)]);
+            case 'transactions':
+                return response()->json(['transactions' => $this->getInsiderTransactions($symbol)]);
             case 'performance':
                 return response()->json(['performance' => $this->getETFPerformanceSummary($symbol)]);
             case 'news':
@@ -320,14 +320,39 @@ class ETFController extends Controller
         });
     }
 
-    protected function getETFHoldings($symbol)
-    {
-        return Cache::remember("etf_holdings_fmp_limit_{$symbol}", $this->cacheDuration, function () use ($symbol) {
-            $url = "{$this->fmpBaseUrl}etf-holder/{$symbol}?apikey={$this->fmpApiKey}&limit=15";
-            $response = Http::get($url);
+    // protected function getETFHoldings($symbol)
+    // {
+    //     $url = "{$this->fmpBaseUrl}etf-holder/{$symbol}?apikey={$this->fmpApiKey}";
+    //     return Cache::remember("etf_holdings_fmp_limit_{$symbol}", $this->cacheDuration, function () use ($symbol) {
+    //         $url = "{$this->fmpBaseUrl}etf-holder/{$symbol}?apikey={$this->fmpApiKey}";
+    //         $response = Http::get($url);
 
-            return $response->successful() ? $response->json() : [];
-        });
+    //         return $response->successful() ? $response->json() : [];
+    //     });
+    // }
+    public function insi($symbol)
+    {
+        $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1mo";
+        $response = Http::timeout(5)->get($url);
+        $json = $response->json();
+
+        if (!isset($json['chart']['result'][0])) {
+            return response()->json([], 404);
+        }
+
+        $result = $json['chart']['result'][0];
+        $timestamps = $result['timestamp'] ?? [];
+        $quote = $result['indicators']['quote'][0];
+
+        $data = [];
+        foreach ($timestamps as $i => $timestamp) {
+            $data[] = [
+                'date' => date('Y-m-d', $timestamp),
+                'close' => $quote['close'][$i] ?? null,
+            ];
+        }
+
+        return response()->json(array_filter($data, fn($item) => $item['close'] !== null));
     }
     protected function getETFPerformanceSummary($symbol)
     {
@@ -336,6 +361,15 @@ class ETFController extends Controller
             $url = "{$this->fmpBaseUrl}historical-price-full/{$symbol}?apikey={$this->fmpApiKey}";
             $response = Http::get($url);
             return $response->successful() ? $response->json()['historical'] ?? [] : [];
+        });
+    }
+        public function getInsiderTransactions($symbol)
+    {
+        return Cache::remember("stock_insider_transactions_new_{$symbol}", $this->cacheDuration, function () use ($symbol) {
+            $url = "{$this->baseUrl}stock/insider-transactions?symbol={$symbol}&token={$this->apiKey}";
+            $response = Http::get($url);
+
+            return $response->json()['data'] ?? [];
         });
     }
 }

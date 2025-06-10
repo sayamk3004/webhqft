@@ -39,7 +39,7 @@ defineProps({
                     />
                 </div>
 
-                <div
+                <!-- <div
                     class="border border-gray-800 bg-default text-white shadow-sm p-4 shadow sm:rounded-lg sm:p-8"
                 >
                     <UpdatePasswordForm class="max-w-xl" />
@@ -49,7 +49,7 @@ defineProps({
                     class="border border-gray-800 bg-default text-white shadow-sm p-4 shadow sm:rounded-lg sm:p-8"
                 >
                     <DeleteUserForm class="max-w-xl" />
-                </div>
+                </div> -->
             </div>
         </div>
     </AppLayout>

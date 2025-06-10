@@ -81,6 +81,9 @@
           <div v-if="activeTab === 'Holdings'">
             <ETFHoldings :holdings="holdings" v-if="holdings && holdings.length" />
           </div>
+          <div v-if="activeTab === 'Transactions'">
+            <InsiderTransactions :transactions="transactions" :symbol="symbol" v-if="transactions && transactions.length" />
+          </div>
 
           <div v-if="activeTab === 'Performance'">
             <ETFPerformance :performance="performance" v-if="performance" />
@@ -114,18 +117,14 @@ import DistributionsTable from '@/Components/DistributionsTable.vue';
 import ETFHoldings from '@/Components/ETFHoldings.vue';
 import ETFPerformance from '@/Components/ETFPerformance.vue';
 import AddToWatchlistButton from '@/Components/AddToWatchlistButton.vue';
+import ETFNavChart from '@/Components/ETFNavChart.vue';
+import InsiderTransactions from '@/Components/InsiderTransactions.vue';
 
 const props = defineProps({
   symbol: String,
   profile: Object,
   quote: Object,
-  // financials: Object,
-  // distributions: Array,
   chartData: Object,
-  // news: Array,
-  // peers: Array,
-  // holdings: Array,
-  // performance: Array,
   topMovers: Array
 });
 
@@ -133,10 +132,11 @@ const financials = ref(null);
 const distributions = ref(null);
 const peers = ref(null);
 const holdings = ref(null);
+const transactions = ref(null);
 const performance = ref(null);
 const news = ref(null);
 
-const tabs = ['Overview', 'Dividends', 'Holdings', 'Performance', 'Peers', 'News'];
+const tabs = ['Overview', 'Dividends', 'Transactions', 'Performance', 'Peers', 'News'];
 const activeTab = ref('');
 
 activeTab.value = 'Overview';
@@ -144,20 +144,18 @@ activeTab.value = 'Overview';
 const loadedTabs = ref([]);
 
 watch(activeTab, async (newTab) => {
-
   const { data } = await axios.get(route('etfs.loadTabData', {
     symbol: props.symbol,
     tab: newTab.toLowerCase()
   }), {
     timeout: 30000 // 10 seconds
   });
-  console.log(data);
   switch (newTab) {
     case 'Dividends':
       distributions.value = data.distributions;
       break;
-    case 'Holdings':
-      holdings.value = data.holdings;
+    case 'Transactions':
+      transactions.value = data.transactions;
       break;
     case 'Peers':
       peers.value = data.peers;
