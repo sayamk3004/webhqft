@@ -321,25 +321,30 @@ class StockController extends Controller
         return response()->json($data);
     }
 
-    /**
-     * Force refresh cache (can be called manually or via scheduler)
-     */
     public function refreshCache()
     {
-        $allStocks = $this->getAllStocksData();
-        Cache::put('all_stocks_data', $allStocks, $this->cacheDuration);
+        Cache::put('popular_stocks', $this->getPopularStocks(), $this->cacheDuration);
+        Cache::put('market_indices', $this->getIndices(), $this->cacheDuration);
+        Cache::put('top_gainers', $this->getTopMovers()['gainers'], $this->cacheDuration);
 
-        Cache::put('dashboard_data', [
-            'popularStocks' => $this->getPopularStocks(),
-            'marketNews' => $this->getMarketNews(),
-            'marketStatus' => $this->getMarketStatus(),
-            'lastUpdated' => now()->toDateTimeString()
-        ], $this->cacheDuration);
+        Cache::put('top_losers', $this->getTopMovers()['losers'], $this->cacheDuration);
+        Cache::put('sector_performance', $this->getSectorPerformance(), $this->cacheDuration);
+        $economicCalendar = $this->getEconomicCalendar();
+        Cache::put('economic_calendar', $economicCalendar, $this->cacheDuration);
 
-        Cache::put('stocks_last_updated', now()->toDateTimeString(), $this->cacheDuration);
+        $aiSummary = $this->getAIAnalystSummary();
+        Cache::put('ai_summary', $aiSummary, $this->cacheDuration);
+
+        $marketNews = $this->getAllMarketNews();
+        Cache::put('market_news_all', $marketNews, $this->cacheDuration);
+
+        $marketGraph = $this->getMarketGraph();
+        Cache::put('market_graph', $marketGraph, $this->cacheDuration);
 
         return response()->json(['success' => true, 'message' => 'Cache refreshed']);
     }
+
+
     public function getAllStocksData()
     {
         return Cache::remember('all_stocks_data', $this->cacheDuration, function () {

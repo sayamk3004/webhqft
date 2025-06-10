@@ -18,9 +18,5 @@ class RefreshStockData extends Command
         $controller = new StockController();
         $controller->refreshCache();
         $this->info('Stock data cache refreshed successfully.');
-
-                $controller = new ETFController();
-        $controller->refreshCache();
-        $this->info('ETF data cache refreshed successfully.');
     }
 }
