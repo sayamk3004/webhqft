@@ -2,14 +2,10 @@
   <AppLayout>
     <div class="max-w-7xl mx-auto px-4 py-10 text-white">
       <h2 class="text-4xl font-extrabold mb-10 text-center tracking-tight">📊 Stock Comparison Dashboard</h2>
-
-      <!-- Chart Section -->
       <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl shadow-2xl mb-12">
         <h3 class="text-2xl font-semibold mb-6 border-b border-gray-700 pb-2">💹 Price Bar Chart</h3>
         <BarChart :labels="symbols" :values="symbols.map(s => data[s]?.price || 0)" />
       </div>
-
-      <!-- Data Table Section -->
       <div class="overflow-x-auto rounded-2xl bg-gray-900 p-6 shadow-xl">
         <table class="min-w-full text-sm text-left border border-gray-700">
           <thead class="bg-gray-800 text-gray-100">

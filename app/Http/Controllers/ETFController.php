@@ -51,49 +51,34 @@ class ETFController extends Controller
         $perPage = (int) $request->input('per_page', 25);
         $start = ($page - 1) * $perPage;
 
-        $response = Http::get('https://query2.finance.yahoo.com/v1/finance/screener/predefined/saved', [
-            'scrIds' => 'etf',
-            'count' => $perPage,
-            'start' => $start
-        ]);
+        $cacheKey = "yahoo_etfs_page_{$page}_per_{$perPage}";
 
-        $result = $response->json()['finance']['result'][0] ?? [];
-        $etfs = $result['quotes'] ?? [];
-        $total = $result['total'] ?? count($etfs); // Fallback in case total is missing
+        $data = Cache::remember($cacheKey, $this->cacheDuration, function () use ($perPage, $start) {
+            $response = Http::get('https://query2.finance.yahoo.com/v1/finance/screener/predefined/saved', [
+                'scrIds' => 'etf',
+                'count' => $perPage,
+                'start' => $start
+            ]);
+
+            $result = $response->json()['finance']['result'][0] ?? [];
+            return [
+                'etfs' => $result['quotes'] ?? [],
+                'total' => $result['total'] ?? 0
+            ];
+        });
 
         return inertia('ETF/Index', [
-            'etfs' => $etfs,
+            'etfs' => $data['etfs'],
             'pagination' => [
                 'current_page' => $page,
                 'per_page' => $perPage,
-                'total' => $total,
-                'last_page' => ceil($total / $perPage),
+                'total' => $data['total'],
+                'last_page' => ceil($data['total'] / $perPage),
             ],
         ]);
     }
 
 
-    // public function show($symbol)
-    // {
-    //     $cacheKey = "etf_tm_{$symbol}_updated_finance_data";
-    //     $data = Cache::remember($cacheKey, $this->cacheDuration, function () use ($symbol) {
-    //         return [
-    //             'profile' => $this->getETFProfile($symbol),
-    //             'quote' => $this->getETFQuote($symbol),
-    //             'financials' => $this->getFinancials($symbol),
-    //             'distributions' => $this->getDistributions($symbol),
-    //             'chartData' => $this->getChartData($symbol),
-    //             'news' => $this->getNews($symbol),
-    //             'peers' => $this->getPeers($symbol),
-    //             'holdings' => $this->getETFHoldings($symbol),
-    //             'performance' => $this->getETFPerformanceSummary($symbol),
-    //             'lastUpdated' => now()->toDateTimeString(),
-    //             'topMovers' => $this->getTopMovers(15)
-    //         ];
-    //     });
-
-    //     return inertia('ETF/Show', array_merge(['symbol' => $symbol], $data));
-    // }
     public function show($symbol)
     {
         $cacheKey = "etf_tm_{$symbol}_base";
@@ -363,7 +348,7 @@ class ETFController extends Controller
             return $response->successful() ? $response->json()['historical'] ?? [] : [];
         });
     }
-        public function getInsiderTransactions($symbol)
+    public function getInsiderTransactions($symbol)
     {
         return Cache::remember("stock_insider_transactions_new_{$symbol}", $this->cacheDuration, function () use ($symbol) {
             $url = "{$this->baseUrl}stock/insider-transactions?symbol={$symbol}&token={$this->apiKey}";

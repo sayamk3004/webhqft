@@ -16,7 +16,6 @@ const compare = useCompareStore();
 
 const goToCompare = () => {
   const symbols = compare.symbols.join(',');
-  alert(symbols);
   router.get(route('compare.show', symbols));
 };
 </script>
