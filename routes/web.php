@@ -26,7 +26,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [StockController::class, 'index'])->name('stocks.index');
         Route::get('/{symbol}', [StockController::class, 'show'])->name('stocks.show');
         Route::post('/compare-data', [StockController::class, 'compareData'])->name('stocks.compare');
-        Route::get('/compare/{symbols}', [StockController::class, 'showCompare'])->name('compare.show');
+        Route::get('/multiple/compare/{symbols?}', [StockController::class, 'showCompare'])->name('compare.show');
         Route::get('/market/movers', [StockController::class, 'movers'])->name('stocks.movers');
     });
     Route::get('/indices/{symbol}', [StockController::class, 'showIndex'])->name('indices.show');

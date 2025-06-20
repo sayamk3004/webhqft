@@ -57,7 +57,7 @@ class StockController extends Controller
 
         return response()->json($results);
     }
-    public function showCompare($symbols)
+    public function showCompare($symbols = null)
     {
         $symbolList = explode(',', $symbols);
 
@@ -213,17 +213,20 @@ class StockController extends Controller
         $allStocks = $this->getAllStocksData();
 
         if ($search) {
-            $allStocks = array_filter($allStocks, function ($item) use ($search) {
+            $filtered = array_filter($allStocks, function ($item) use ($search) {
                 return stripos($item['symbol'], $search) !== false ||
-                    stripos($item['description'], $search) !== false;
+                    (isset($item['displayName']) && stripos($item['displayName'], $search) !== false);
             });
+
+            $isOnlyEtf = empty($filtered) && collect($filtered)->every(fn($item) => ($item['quoteType'] ?? '') === 'ETF');
+            if ($isOnlyEtf) {
+                return redirect()->route('etfs.index', ['search' => $search]);
+            }
+
+            $allStocks = $filtered;
         }
 
-        $filteredStocks = array_values(array_filter($allStocks, function ($item) {
-            return $item['type'] === 'Common Stock';
-        }));
-
-        $paginatedStocks = array_slice($filteredStocks, ($page - 1) * $perPage, $perPage);
+        $paginatedStocks = array_slice($allStocks, ($page - 1) * $perPage, $perPage);
 
         return inertia('Stocks/Index', [
             'stocks' => $paginatedStocks,
@@ -232,11 +235,12 @@ class StockController extends Controller
             'pagination' => [
                 'current_page' => $page,
                 'per_page' => $perPage,
-                'total' => count($filteredStocks),
-                'last_page' => ceil(count($filteredStocks) / $perPage),
+                'total' => count($allStocks),
+                'last_page' => ceil(count($allStocks) / $perPage),
             ],
         ]);
     }
+
 
     /**
      * Single stock detail view
@@ -344,26 +348,47 @@ class StockController extends Controller
         return response()->json(['success' => true, 'message' => 'Cache refreshed']);
     }
 
-
-    public function getAllStocksData()
+    public function fetchAllSymbols()
     {
-        return Cache::remember('all_stocks_data', $this->cacheDuration, function () {
-            $stocks = [];
+        return Cache::remember('all_stock_symbols_finn', $this->cacheDuration, function () {
+            $response = Http::get("{$this->baseUrl}stock/symbol?exchange=US&token={$this->apiKey}");
+            return $response->successful() ? $response->json() : [];
+        });
+    }
+    // public function getAllStocksData()
+    // {
+    //     return Cache::remember('all_stocks_data_new_1', $this->cacheDuration, function () {
+    //         $stocks = [];
+    //         $symbols = $this->fetchAllSymbols();
 
-            foreach ($this->defaultSymbols as $symbol) {
-                $stockData = $this->getBasicStockData($symbol);
-                if ($stockData) {
-                    $stocks[] = $stockData;
-                }
-            }
+    //         foreach ($symbols as $symbol) {
+    //             $stockData = $this->getBasicStockData($symbol);
+    //             if ($stockData) {
+    //                 $stocks[] = $stockData;
+    //             }
+    //         }
 
-            return $stocks;
+    //         return $stocks;
+    //     });
+    // }
+    public function getAllStocksData($start = 0, $count = 100)
+    {
+        $cacheKey = "yahoo_most_actives_stocks_{$start}_{$count}";
+        $cacheDuration = now()->addMinutes(60); // or use $this->cacheDuration if defined
+
+        return Cache::remember($cacheKey, $cacheDuration, function () use ($start, $count) {
+            $url = "https://query2.finance.yahoo.com/v1/finance/screener/predefined/saved";
+            $params = [
+                'scrIds' => 'most_actives',
+                'count' => $count,
+                'start' => $start,
+            ];
+
+            $response = Http::get($url, $params);
+            return $response->json()['finance']['result'][0]['quotes'] ?? [];
         });
     }
 
-    /**
-     * Get basic stock data (profile + quote)
-     */
     public function getBasicStockData($symbol)
     {
         $profile = $this->getStockProfile($symbol);

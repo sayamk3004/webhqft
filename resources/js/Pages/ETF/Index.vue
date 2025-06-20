@@ -19,12 +19,12 @@ defineProps({
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="mb-6 flex justify-between items-center">
                     <h1 class="text-3xl font-bold">ETFs</h1>
-                    <div class="relative w-64">
+                    <!-- <div class="relative w-64">
                         <input type="text" placeholder="Search ETFs..."
                             class="w-full px-4 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             :value="search"
                             @input="$inertia.get(route('etfs.index'), { search: $event.target.value }, { preserveState: true })" />
-                    </div>
+                    </div> -->
                 </div>
 
                 <div

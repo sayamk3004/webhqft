@@ -18,6 +18,8 @@
             <Link :href="route('stocks.movers')" class="block my-2 p-2 hover:text-indigo-400">Top Movers</Link>
             <!-- <Link :href="route('stocks.news')" class="block my-2 p-2 hover:text-indigo-400">News</Link> -->
             <Link :href="route('watchlist.page')" class="block my-2 p-2 hover:text-indigo-400">My Watchlist</Link>
+            <Link @click="goToCompare" class="block my-2 p-2 hover:text-indigo-400">My Compare List</Link>
+
 
             <hr class="border-gray-600 my-2" />
             <Link :href="route('profile.edit')" class="block my-2 p-2 hover:text-indigo-400">Profile</Link>
@@ -27,7 +29,15 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link,router } from '@inertiajs/vue3';
+import { useCompareStore } from '@/Stores/compare';
 defineProps(['isOpen']);
 defineEmits(['close']);
+const compare = useCompareStore();
+
+const goToCompare = () => {
+  const symbols = compare.symbols.join(',');
+  router.get(route('compare.show', symbols));
+};
+
 </script>
